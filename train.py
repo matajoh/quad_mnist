@@ -150,10 +150,17 @@ def evaluate_model(dataset: qm.MultilabelDataset, net: nn.Module, snapshots: Lis
 
 def main():
     dataset = qm.MultilabelDataset.quadmnist()
+    if dataset.label_frequency is not None:
+        weight = np.exp(-1.0 / dataset.label_frequency.astype(np.float32))
+        weight /= weight.sum()
+        weight = torch.from_numpy(weight)
+    else:
+        weight = None
+
     net = qm.FCNMulti()
-    criterion = nn.BCEWithLogitsLoss()
     path = "quad_mnist.results"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    criterion = nn.BCEWithLogitsLoss(weight.to(device))
 
     if os.path.exists(path):
         results = torch.load(path)

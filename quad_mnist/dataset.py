@@ -109,7 +109,7 @@ def load_quadmnist():
 
 class MultilabelDataset:
     def __init__(self, train: TensorDataset, val: TensorDataset,
-                 label_names: List[str] = None):
+                 label_names: List[str] = None, label_frequency: np.ndarray = None):
         if isinstance(train, TensorDataset):
             self.shape = train.tensors[0].shape[1:]
         else:
@@ -118,6 +118,7 @@ class MultilabelDataset:
         self.train = train
         self.val = val
         self.label_names = label_names
+        self.label_frequency = label_frequency
         self.mean = np.zeros((1,) + self.shape, np.float32)
         self.std = np.ones((1,) + self.shape, np.float32)
 
@@ -141,7 +142,7 @@ class MultilabelDataset:
         quadmnist = load_quadmnist()
         data = quadmnist["data"].astype(np.float32)  # convert the uint8s to floats
         data /= 255  # scale to be from 0 to 1
-        target = quadmnist["target"].astype(np.int64)  # convert the uint8s to int32s
+        target = quadmnist["target"]
         num_classes = quadmnist["num_classes"].item()
         num_train = quadmnist["num_train"].item()
 
@@ -156,4 +157,5 @@ class MultilabelDataset:
         train = TensorDataset(torch.from_numpy(data[:num_train]), torch.from_numpy(to_multihot(target[:num_train])))
         val = TensorDataset(torch.from_numpy(data[num_train:]), torch.from_numpy(to_multihot(target[num_train:])))
         label_names = [str(i) for i in range(num_classes)]
-        return MultilabelDataset(train, val, label_names)
+        label_frequency = np.bincount(target[:num_train].flatten(), minlength=num_classes)
+        return MultilabelDataset(train, val, label_names, label_frequency)
