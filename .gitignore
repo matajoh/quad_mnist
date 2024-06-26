@@ -164,4 +164,4 @@ cython_debug/
 
 # Misc
 mnist.pkl
-quadmnist.npz
+quad_mnist.*

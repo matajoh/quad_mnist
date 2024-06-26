@@ -34,11 +34,12 @@ def build_quadmnist():
     mnist = load_mnist()
     mnist_data = mnist["data"].reshape((-1, 1, 28, 28))
     mnist_target = mnist['target'].astype(np.int64)
+    num_classes = 10
     num_train = 60000
     num_val = len(mnist_target) - num_train
 
     # group images by label
-    labels = list(range(10))
+    labels = list(range(num_classes))
     train_images = {i: deque() for i in labels}
     val_images = {i: deque() for i in labels}
     for i, label in tqdm(enumerate(mnist_target), "Sorting images by label"):
@@ -96,14 +97,14 @@ def build_quadmnist():
 
     data = np.stack(data)
     target = np.stack(target)
-    np.savez("quadmnist.npz", data=data, target=target, num_train=num_train, num_val=num_val)
+    np.savez("quad_mnist.npz", data=data, target=target, num_classes=num_classes, num_train=num_train, num_val=num_val)
 
 
 def load_quadmnist():
-    if not os.path.exists("quadmnist.npz"):
+    if not os.path.exists("quad_mnist.npz"):
         build_quadmnist()
 
-    return np.load("quadmnist.npz")
+    return np.load("quad_mnist.npz")
 
 
 class MultilabelDataset:
@@ -141,9 +142,18 @@ class MultilabelDataset:
         data = quadmnist["data"].astype(np.float32)  # convert the uint8s to floats
         data /= 255  # scale to be from 0 to 1
         target = quadmnist["target"].astype(np.int64)  # convert the uint8s to int32s
+        num_classes = quadmnist["num_classes"].item()
         num_train = quadmnist["num_train"].item()
 
-        train = TensorDataset(torch.from_numpy(data[:num_train]), torch.from_numpy(target[:num_train]))
-        val = TensorDataset(torch.from_numpy(data[num_train:]), torch.from_numpy(target[num_train:]))
-        label_names = [str(i) for i in range(10)]
+        def to_multihot(labels: np.ndarray) -> np.ndarray:
+            num_targets = labels.shape[0]
+            multihot = np.zeros((num_targets, num_classes), np.float32)
+            for i in range(num_targets):
+                multihot[i, labels[i]] = 1
+
+            return multihot
+
+        train = TensorDataset(torch.from_numpy(data[:num_train]), torch.from_numpy(to_multihot(target[:num_train])))
+        val = TensorDataset(torch.from_numpy(data[num_train:]), torch.from_numpy(to_multihot(target[num_train:])))
+        label_names = [str(i) for i in range(num_classes)]
         return MultilabelDataset(train, val, label_names)
